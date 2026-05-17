@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dump & Find | العقل الثاني العشوائي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
+        body { font-family: 'Tajawal', sans-serif; }
+        .drop-active { border-color: #10b981; background-color: rgba(16, 185, 129, 0.1); }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-slate-100 min-h-screen flex flex-col items-center p-4">
+
+    <header class="text-center my-10">
+        <h1 class="text-5xl font-extrabold text-emerald-400 tracking-tight mb-3">Dump & Find</h1>
+        <p class="text-slate-400 text-lg">مستودعك العشوائي الذكي.. ارمِ مذكراتك وصورك واترك الباقي علينا.</p>
+    </header>
+
+    <main class="w-full max-w-2xl space-y-10">
+
+        <section id="drop-zone" class="border-2 border-dashed border-slate-700 bg-slate-800/40 p-10 rounded-3xl text-center cursor-pointer transition-all duration-300 hover:bg-slate-800/60 group">
+            <div class="space-y-4">
+                <div class="text-5xl group-hover:scale-110 transition-transform">📥</div>
+                <h2 class="text-xl font-bold text-slate-200">إلقاء سريع</h2>
+                <p class="text-slate-400 text-sm">اسحب الصور هنا، أو اكتب نصاً، أو الصق رابطاً عشوائياً.</p>
+                
+                <textarea id="text-dump" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 hidden transition-all" rows="4" placeholder="ماذا يدور في ذهنك الآن؟..."></textarea>
+                
+                <div class="flex justify-center gap-4">
+                    <button id="btn-toggle-text" class="bg-slate-700 hover:bg-slate-600 px-6 py-2 rounded-xl text-sm font-medium transition">كتابة نص</button>
+                    <button id="btn-save" class="bg-emerald-600 hover:bg-emerald-500 px-8 py-2 rounded-xl text-sm font-bold transition hidden shadow-lg shadow-emerald-900/20">حفظ في المستودع</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="space-y-6">
+            <div class="relative group">
+                <input type="text" id="search-input" class="w-full bg-slate-800/80 border border-slate-700 rounded-2xl py-4 px-6 pr-14 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition shadow-2xl" placeholder="ابحث بما تتذكره.. 'صورة الكود اللي حفظتها أمس'">
+                <button id="btn-search" class="absolute left-4 top-3 text-2xl hover:scale-110 transition">🔍</button>
+            </div>
+
+            <div id="results-list" class="grid grid-cols-1 gap-4">
+                <div class="text-center py-10 text-slate-500 italic bg-slate-800/20 rounded-2xl border border-slate-800/50">
+                    بانتظار أوامرك لنبش الذاكرة..
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // إعدادات Supabase باستخدام بياناتك الحقيقية من الصورة
+        const SB_URL = "https://tyuxfvgrabqjlkfqwddj.supabase.co";
+        const SB_KEY = "sb_publishable_vPxzDCtgCkG8VDy-4vkVsg_rYLQZ3yM"; // مفتاح الـ Anon الخاص بك
+
+        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+
+        // العناصر
+        const dropZone = document.getElementById('drop-zone');
+        const textInput = document.getElementById('text-dump');
+        const btnToggle = document.getElementById('btn-toggle-text');
+        const btnSave = document.getElementById('btn-save');
+        const searchInput = document.getElementById('search-input');
+        const btnSearch = document.getElementById('btn-search');
+        const resultsList = document.getElementById('results-list');
+
+        // تبديل واجهة النص
+        btnToggle.onclick = (e) => {
+            e.stopPropagation();
+            textInput.classList.toggle('hidden');
+            btnSave.classList.toggle('hidden');
+            if (!textInput.classList.contains('hidden')) textInput.focus();
+        };
+
+        // وظيفة الحفظ الفوري للنصوص
+        btnSave.onclick = async () => {
+            const val = textInput.value.trim();
+            if(!val) return;
+
+            btnSave.disabled = true;
+            btnSave.innerText = "جاري الحفظ...";
+
+            const { error } = await supabaseClient
+                .from('random_dumps')
+                .insert([{ content: val }]);
+
+            if (error) {
+                alert("خطأ: " + error.message);
+            } else {
+                textInput.value = "";
+                textInput.classList.add('hidden');
+                btnSave.classList.add('hidden');
+                alert("تم الحفظ عشوائياً!");
+                loadLatest(); // تحديث القائمة
+            }
+            btnSave.disabled = false;
+            btnSave.innerText = "حفظ في المستودع";
+        };
+
+        // معالجة السحب والإفلات للملفات
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('drop-active'); };
+        dropZone.ondragleave = () => dropZone.classList.remove('drop-active');
+        
+        dropZone.ondrop = async (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drop-active');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                alert(`تم استلام الصورة: ${file.name}\nسيتم ربط معالج بايثون في الخطوة القادمة لقراءة محتواها.`);
+            }
+        };
+
+        // وظيفة البحث (بحث نصي حالياً حتى نربط الـ Vectors)
+        async function runSearch() {
+            const query = searchInput.value.trim();
+            resultsList.innerHTML = '<div class="text-center py-10 animate-pulse text-emerald-500">جاري استرجاع ذكرياتك...</div>';
+
+            const { data, error } = await supabaseClient
+                .from('random_dumps')
+                .select('*')
+                .or(`content.ilike.%${query}%,extracted_text.ilike.%${query}%`)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                resultsList.innerHTML = "حدث خطأ أثناء البحث.";
+                return;
+            }
+            display(data);
+        }
+
+        btnSearch.onclick = runSearch;
+        searchInput.onkeypress = (e) => { if(e.key === 'Enter') runSearch(); };
+
+        // عرض النتائج
+        function display(items) {
+            if (items.length === 0) {
+                resultsList.innerHTML = '<div class="text-center py-10 text-slate-600">لم نجد شيئاً يطابق هذا الوصف.</div>';
+                return;
+            }
+            resultsList.innerHTML = items.map(i => `
+                <div class="bg-slate-800/60 border border-slate-700 p-5 rounded-2xl hover:border-emerald-500/50 transition-colors">
+                    <div class="flex justify-between mb-3">
+                        <span class="text-[10px] text-slate-500 font-mono">${new Date(i.created_at).toLocaleString('ar-EG')}</span>
+                        <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full">محفوظ</span>
+                    </div>
+                    <p class="text-slate-200 text-sm leading-relaxed">${i.content || i.extracted_text}</p>
+                </div>
+            `).join('');
+        }
+
+        // تحميل أحدث العناصر عند الفتح
+        async function loadLatest() {
+            const { data } = await supabaseClient.from('random_dumps').select('*').limit(5).order('created_at', { ascending: false });
+            if (data) display(data);
+        }
+        loadLatest();
+
+    </script>
+</body>
+</html>
