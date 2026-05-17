@@ -3,41 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dump & Find - مستودع رمزي</title>
+    <title>مستودع رمزي - صور ونصوص</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: sans-serif; background-color: #0f172a; color: white; text-align: center; padding: 20px; }
-        .card { background: #1e293b; padding: 25px; border-radius: 20px; max-width: 450px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { color: #10b981; margin-bottom: 5px; }
+        .card { background: #1e293b; padding: 25px; border-radius: 20px; max-width: 450px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #334155; }
         textarea { width: 100%; height: 100px; border-radius: 12px; padding: 12px; background: #0f172a; color: white; border: 1px solid #334155; margin-bottom: 15px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; margin-bottom: 10px; }
+        .btn { width: 100%; padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
         .btn-text { background-color: #10b981; color: white; }
-        .btn-image { background-color: #3b82f6; color: white; }
-        input[type="file"] { margin: 15px 0; color: #94a3b8; width: 100%; }
-        #status { margin-top: 15px; font-size: 0.9em; padding: 10px; border-radius: 8px; }
-        .success { color: #10b981; background: rgba(16, 185, 129, 0.1); }
+        .btn-blue { background-color: #3b82f6; color: white; }
+        input[type="file"] { margin: 15px 0; color: #94a3b8; width: 100%; border: 1px dashed #334155; padding: 10px; border-radius: 10px; }
+        #status { margin-top: 15px; font-size: 0.9em; padding: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>Dump & Find</h1>
-    <p>ارمي ملاحظاتك وصورك هنا..</p>
-
+    <h2>مستودع رمزي الذكي</h2>
     <div class="card">
-        <textarea id="textContent" placeholder="اكتب ملاحظة سريعة..."></textarea>
+        <textarea id="textContent" placeholder="اكتب ملاحظة نصية هنا..."></textarea>
         <button onclick="sendText()" class="btn btn-text">حفظ النص</button>
 
-        <hr style="border: 0.5px solid #334155; margin: 20px 0;">
+        <hr style="border: 0.5px solid #334155; margin: 25px 0;">
 
         <input type="file" id="imageInput" accept="image/*">
-        <button onclick="uploadImage()" class="btn btn-blue">رفع صورة للمستودع</button>
+        <button onclick="uploadImage()" class="btn btn-blue">رفع الصورة للمخزن</button>
 
         <div id="status"></div>
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://af737100-creator.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_vPxzDCtgCkG8VDy-4vkVsg_rYLQZ3yM'; // مفتاحك الذي أرسلته
+        const SUPABASE_URL = 'https://af737100-creator.supabase.co'; 
+        const SUPABASE_KEY = 'sb_publishable_vPxzDCtgCkG8VDy-4vkVsg_rYLQZ3yM'; 
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function sendText() {
@@ -45,27 +41,28 @@
             if (!content) return;
             const { error } = await supabase.from('random_dumps').insert([{ content }]);
             if (!error) {
-                document.getElementById('status').innerText = "تم حفظ النص!";
+                document.getElementById('status').innerText = "✅ تم حفظ النص!";
                 document.getElementById('textContent').value = "";
             }
         }
 
         async function uploadImage() {
-            const file = document.getElementById('imageInput').files[0];
-            if (!file) return alert("اختر صورة أولاً");
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+            if (!file) return alert("الرجاء اختيار صورة أولاً");
 
-            document.getElementById('status').innerText = "جاري رفع الصورة...";
+            document.getElementById('status').innerText = "⏳ جاري الرفع...";
             const fileName = `${Date.now()}_${file.name}`;
 
             const { data, error } = await supabase.storage
-                .from('RANDOM_MEDIA') // اسم الباكت الذي أنشأته في الصورة (17:56)
+                .from('RANDOM_MEDIA') 
                 .upload(fileName, file);
 
             if (error) {
-                document.getElementById('status').innerText = "فشل: " + error.message;
+                document.getElementById('status').innerText = "❌ فشل: " + error.message;
             } else {
-                document.getElementById('status').innerText = "تم رفع الصورة بنجاح!";
-                document.getElementById('imageInput').value = "";
+                document.getElementById('status').innerText = "✅ تم رفع الصورة بنجاح!";
+                fileInput.value = "";
             }
         }
     </script>
