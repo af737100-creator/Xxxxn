@@ -3,83 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مستودع رمزي الشامل</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>مستودع رمزي أوفلاين</title>
     <style>
-        body { font-family: sans-serif; background-color: #0f172a; color: white; text-align: center; padding: 20px; }
-        .card { background: #1e293b; padding: 20px; border-radius: 15px; max-width: 500px; margin: auto; border: 1px solid #334155; }
-        textarea { width: 100%; height: 80px; border-radius: 10px; padding: 10px; background: #0f172a; color: white; border: 1px solid #475569; box-sizing: border-box; }
-        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.3s; }
+        body { font-family: sans-serif; background-color: #121826; color: white; text-align: center; padding: 20px; }
+        .card { background: #1f2937; padding: 20px; border-radius: 15px; border: 1px solid #374151; margin-bottom: 20px; }
+        textarea { width: 100%; height: 80px; border-radius: 10px; padding: 10px; background: #111827; color: white; border: 1px solid #4b5563; box-sizing: border-box; }
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; }
         .btn-green { background: #10b981; color: white; }
-        .btn-blue { background: #3b82f6; color: white; }
-        #gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; margin-top: 30px; }
-        .media-item { background: #1e293b; padding: 10px; border-radius: 10px; border: 1px solid #334155; }
-        .media-item img { width: 100%; border-radius: 8px; height: 120px; object-fit: cover; }
-        .text-item { background: #334155; padding: 10px; border-radius: 8px; margin-bottom: 10px; text-align: right; font-size: 0.9em; }
+        .btn-red { background: #ef4444; color: white; font-size: 0.8em; padding: 5px; width: auto; }
+        #list { margin-top: 20px; text-align: right; }
+        .item { background: #1f2937; padding: 15px; border-radius: 10px; margin-bottom: 10px; border-right: 5px solid #10b981; display: flex; justify-content: space-between; align-items: center; }
+        img { max-width: 100px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <h2>مستودع رمزي الذكي</h2>
+    <h2>مستودع رمزي (يعمل بدون إنترنت)</h2>
     
     <div class="card">
-        <textarea id="textContent" placeholder="اكتب ملاحظة للحفظ..."></textarea>
-        <button onclick="sendText()" class="btn btn-green">حفظ النص</button>
-        <hr style="margin: 20px 0; border: 0.1px solid #334155;">
-        <input type="file" id="imageInput" accept="image/*">
-        <button onclick="uploadImage()" class="btn btn-blue">رفع صورة</button>
-        <div id="status" style="margin-top:10px;"></div>
+        <textarea id="noteInput" placeholder="اكتب ملاحظة للحفظ محلياً..."></textarea>
+        <input type="file" id="imgInput" accept="image/*" style="margin-top:10px;">
+        <button onclick="saveData()" class="btn btn-green">حفظ في ذاكرة الهاتف</button>
     </div>
 
-    <h3 style="margin-top:40px; color:#38bdf8;">الملفات المرفوعة مؤخراً</h3>
-    <div id="textList"></div> <div id="gallery"></div>  <script>
-        const SUPABASE_URL = 'https://af737100-creator.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_vPxzDCtgCkG8VDy-4vkVsg_rYLQZ3yM';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <div id="list"></div>
 
-        // وظيفة جلب البيانات وعرضها
-        async function loadData() {
-            // 1. جلب النصوص من الجدول
-            const { data: texts } = await supabaseClient.from('random_dumps').select('*').order('created_at', { ascending: false });
-            const textList = document.getElementById('textList');
-            textList.innerHTML = texts ? texts.map(t => `<div class="text-item">${t.content}</div>`).join('') : '';
+    <script>
+        // دالة الحفظ في ذاكرة الهاتف (LocalStorage)
+        function saveData() {
+            const note = document.getElementById('noteInput').value;
+            const file = document.getElementById('imgInput').files[0];
+            const reader = new FileReader();
 
-            // 2. جلب روابط الصور من المخزن
-            const { data: files, error } = await supabaseClient.storage.from('RANDOM_MEDIA').list();
-            if (files) {
-                const gallery = document.getElementById('gallery');
-                gallery.innerHTML = '';
-                files.forEach(file => {
-                    const { data: urlData } = supabaseClient.storage.from('RANDOM_MEDIA').getPublicUrl(file.name);
-                    gallery.innerHTML += `<div class="media-item"><img src="${urlData.publicUrl}"><p style="font-size:10px; overflow:hidden;">${file.name}</p></div>`;
-                });
-            }
-        }
+            if (!note && !file) return alert("أدخل بيانات أولاً");
 
-        async function sendText() {
-            const content = document.getElementById('textContent').value;
-            if (!content) return;
-            await supabaseClient.from('random_dumps').insert([{ content }]);
-            document.getElementById('textContent').value = "";
-            loadData(); // تحديث العرض
-        }
-
-        async function uploadImage() {
-            const file = document.getElementById('imageInput').files[0];
-            if (!file) return alert("اختر صورة");
-            document.getElementById('status').innerText = "جاري الرفع...";
-            const fileName = `${Date.now()}_${file.name}`;
-            const { error } = await supabaseClient.storage.from('RANDOM_MEDIA').upload(fileName, file);
-            if (!error) {
-                document.getElementById('status').innerText = "تم الرفع!";
-                loadData(); // تحديث العرض
+            if (file) {
+                reader.readAsDataURL(file); // تحويل الصورة لنص (Base64) لتخزينها محلياً
+                reader.onload = function () {
+                    const item = { note: note, img: reader.result, id: Date.now() };
+                    store(item);
+                };
             } else {
-                document.getElementById('status').innerText = "خطأ: " + error.message;
+                const item = { note: note, img: null, id: Date.now() };
+                store(item);
             }
         }
 
-        // تشغيل الجلب عند فتح الصفحة
-        loadData();
+        function store(item) {
+            let data = JSON.parse(localStorage.getItem('ramzi_data') || '[]');
+            data.unshift(item);
+            localStorage.setItem('ramzi_data', JSON.stringify(data));
+            render();
+            document.getElementById('noteInput').value = "";
+            document.getElementById('imgInput').value = "";
+        }
+
+        function render() {
+            const data = JSON.parse(localStorage.getItem('ramzi_data') || '[]');
+            const listDiv = document.getElementById('list');
+            listDiv.innerHTML = data.map(i => `
+                <div class="item">
+                    <div>
+                        ${i.img ? `<img src="${i.img}"><br>` : ''}
+                        <span>${i.note}</span>
+                    </div>
+                    <button class="btn btn-red" onclick="deleteItem(${i.id})">حذف</button>
+                </div>
+            `).join('');
+        }
+
+        function deleteItem(id) {
+            let data = JSON.parse(localStorage.getItem('ramzi_data') || '[]');
+            data = data.filter(i => i.id !== id);
+            localStorage.setItem('ramzi_data', JSON.stringify(data));
+            render();
+        }
+
+        // تشغيل العرض عند فتح التطبيق
+        render();
     </script>
 </body>
 </html>
