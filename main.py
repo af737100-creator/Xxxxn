@@ -3,35 +3,49 @@ from supabase import create_client, Client
 import easyocr
 from sentence_transformers import SentenceTransformer
 import uvicorn
+import os
 
 app = FastAPI()
 
-# إعدادات سوبابيس
-url = "https://tyuxfvgrabqjlkfqwddj.supabase.co"
-key = "sb_secret_BX10JaBtfhd7FJbwbk7tGg_0SWqX1hS"
-supabase: Client = create_client(url, key)
+# إعدادات سوبابيس (يفضل استخدام متغيرات البيئة Environment Variables للأمان)
+SB_URL = "https://tyuxfvgrabqjlkfqwddj.supabase.co"
+SB_KEY = "sb_secret_BX10JaBtfhd7FJbwbk7tGg_0SWqX1hS"
+supabase: Client = create_client(SB_URL, SB_KEY)
 
-# تحميل النماذج مرة واحدة عند تشغيل السيرفر
+# تحميل النماذج عند بدء التشغيل
+print("⌛ جاري تحميل نماذج الذكاء الاصطناعي على السيرفر...")
 reader = easyocr.Reader(['ar', 'en'])
 model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+print("✅ السيرفر جاهز لاستقبال الطلبات.")
 
-@app.post("/process-dump")
-async def handle_webhook(request: Request):
-    # استقبال البيانات من سوبابيس (Webhook)
-    payload = await request.json()
-    new_record = payload['record']
-    row_id = new_record['id']
-    content = new_record.get('content', '')
+@app.post("/webhook")
+async def handle_supabase_webhook(request: Request):
+    try:
+        payload = await request.json()
+        # سوبابيس ترسل السجل الجديد في حقل 'record'
+        record = payload.get('record', {})
+        row_id = record.get('id')
+        content = record.get('content', '')
 
-    # 1. إذا كان المحتوى نصاً، نولد الـ Vector مباشرة
-    if content:
-        embedding = model.encode(content).tolist()
-        supabase.table("random_dumps").update({"embedding": embedding}).eq("id", row_id).execute()
+        if not row_id:
+            return {"status": "no id found"}
 
-    # 2. إذا كانت هناك صورة (سنحتاج لتحميلها من Storage أولاً)
-    # سنضيف منطق قراءة ملفات الـ Storage هنا
-
-    return {"status": "success"}
+        # معالجة النص وتوليد الـ Vector
+        if content:
+            print(f"🔍 معالجة سجل جديد ID: {row_id}")
+            embedding = model.encode(content).tolist()
+            
+            # تحديث قاعدة البيانات بالـ Embedding
+            supabase.table("random_dumps").update({
+                "embedding": embedding
+            }).eq("id", row_id).execute()
+            
+            return {"status": "processed", "id": row_id}
+            
+        return {"status": "empty content"}
+    except Exception as e:
+        print(f"❌ خطأ: {str(e)}")
+        return {"status": "error", "message": str(e)}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
